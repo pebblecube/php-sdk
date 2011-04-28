@@ -17,6 +17,7 @@
  */
 
 require_once("PebblecubeSession.php");
+require_once("PebblecubeUser.php");
 
 //check if curl installed
 if (!function_exists('curl_init'))
@@ -34,7 +35,7 @@ class Pebblecube
 	 * @var Array
 	 */
 	public static $config = array(
-			"server" => "https://api.pebblecube.com",
+			"server" => "http://localhost:8081",
 			"key" => NULL,
 			"secret" => NULL,
 			"sig" => NULL
@@ -48,6 +49,13 @@ class Pebblecube
 	var $session;
 	
 	/**
+	 * user object
+	 *
+	 * @var PebblecubeUser
+	 */
+	var $user;
+		
+	/**
 	 * Inizialize a pebblecube project
 	 *
 	 * config:
@@ -55,6 +63,7 @@ class Pebblecube
 	 * - secret: project secret key
 	 *
 	 * @param Array $config the project configuration
+	 * @throws PebblecubeException
 	 */
 	public function __construct($params) {
 		
@@ -65,11 +74,12 @@ class Pebblecube
 	    Pebblecube::$config["secret"] = $params['secret'];
 		Pebblecube::$config["sig"] = md5($params['key'].$params['secret']);
 		$this->session = new PebblecubeSession();
+		$this->user = new PebblecubeUser();
 	}
 }
 
 class PebblecubeApi 
-{	
+{
 	/**
 	 * executes an api call
 	 *
@@ -88,12 +98,12 @@ class PebblecubeApi
 		$ch = curl_init();
 		switch($method) {
 			case "GET":
-				curl_setopt($ch, CURLOPT_URL, Pebblecube::$config["server"].$url."?".http_build_query($params));
+				curl_setopt($ch, CURLOPT_URL, Pebblecube::$config["server"].$url."?".http_build_query($params, '', '&'));
 				break;
 			case "POST":
 				curl_setopt($ch, CURLOPT_URL, Pebblecube::$config["server"].$url);
 				curl_setopt($ch, CURLOPT_POST, 1);
-				curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($params));
+				curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($params, '', '&'));
 				break;
 		}
 		curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, FALSE);
