@@ -1,7 +1,7 @@
 Pebblecube PHP SDK
 ================
 
-Pebblecube is videogame development tools, includes: analytics, achievements, scores and much more.
+Pebblecube is videogame development library, includes: analytics, achievements, scores and much more.
 
 This repository contains the open source PHP SDK for the Pebblecube APIs.
 
@@ -35,4 +35,4 @@ Use the [GitHub issues tracker][issues] for feedback. Send bugs or other issues 
 Tests
 -----
 
-Not ready yet ;)
+Coming soon
