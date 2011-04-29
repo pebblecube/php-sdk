@@ -35,7 +35,7 @@ class Pebblecube
 	 * @var Array
 	 */
 	public static $config = array(
-			"server" => "http://localhost:8081",
+			"server" => "https://api.pebblecube.com",
 			"key" => NULL,
 			"secret" => NULL,
 			"sig" => NULL
