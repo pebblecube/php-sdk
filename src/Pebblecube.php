@@ -76,6 +76,44 @@ class Pebblecube
 		$this->session = new PebblecubeSession();
 		$this->user = new PebblecubeUser();
 	}
+	
+	
+	/**
+	 * returns all the scores in a scoreboard
+	 *
+	 * config:
+	 * - board: scoreboard code
+	 * - index (optional): page index, default 1
+	 * - size (optional): page size, max and default 100
+	 * - from (optional): time stamp from
+	 * - to (optional): time stamp to
+	 * - user_token (optional): token released by /auth/request_token method
+	 *
+	 * @param Array $params 
+	 * @return Array scores from a specific scoreboard
+	 * @throws PebblecubeException
+	 */
+	public function getScoreBoard($params) {
+		return PebblecubeApi::executeCall("/games/scoreboard", "GET", $params);
+	}
+	
+	/**
+	 * returns list of all users with a specified achievement
+	 *
+	 * config:
+	 * - code: achievement code
+	 * - index (optional): page index, default 1
+	 * - size (optional): page size, max and default 100
+	 * - from (optional): time stamp from
+	 * - to (optional): time stamp to
+	 *
+	 * @param Array $params 
+	 * @return Array achievements
+	 * @throws PebblecubeException
+	 */
+	public function getAchievementsBoard($params) {
+		return PebblecubeApi::executeCall("/achievements/board", "GET", $params);
+	}	
 }
 
 class PebblecubeApi 
@@ -102,9 +140,18 @@ class PebblecubeApi
 				break;
 			case "POST":
 				curl_setopt($ch, CURLOPT_URL, Pebblecube::$config["server"].$url);
-				curl_setopt($ch, CURLOPT_POST, 1);
+				curl_setopt($ch, CURLOPT_POST, TRUE);
 				curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($params, '', '&'));
 				break;
+			case "FILE":
+				$postParams = array();
+				foreach ($params as $fieldName => $fieldValue) {
+					$postParams[$fieldName] = $fieldValue;
+				}
+				$postParams["file"] = "@".$postParams["file"];
+				curl_setopt($ch, CURLOPT_URL, Pebblecube::$config["server"].$url);
+				curl_setopt($ch, CURLOPT_POST, TRUE);
+				curl_setopt($ch, CURLOPT_POSTFIELDS, $postParams);
 		}
 		curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, FALSE);
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);

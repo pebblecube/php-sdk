@@ -78,10 +78,12 @@ class PebblecubeUser
 	 */
 	public function requestToken() {
 		if($this->auth_token) {
-			$res = PebblecubeApi::executeCall("/users/get", "GET", array("auth_token" => $this->auth_token));
+			$res = PebblecubeApi::executeCall("/auth/request_token", "GET", array("auth_token" => $this->auth_token));
 			if(isset($res['t'])) {
-				$this->$user_token = $res['t'];
+				$this->user_token = $res['t'];
 			}
+			else
+				throw new PebblecubeException("error getting user token");
 		}
 		else
 			throw new PebblecubeException("auth_token not specified");
@@ -157,8 +159,170 @@ class PebblecubeUser
 			throw new PebblecubeException("auth_token not specified");
 	}
 	
-	public function saveGame() {
-		
+	/**
+	 * uploads a saved game file
+	 *
+	 * params:
+	 * - file: path to the file
+	 * - name: filename
+	 * - time: timestamp created
+	 * - session_key: unique session key
+	 *
+	 * @param Array $params game data
+	 * @return string ticket to retrieve the file
+	 * @throws PebblecubeException
+	 */
+	public function saveGame($params) {
+		if($this->user_token) {
+			$params["user_token"] = $this->user_token;
+			$res = PebblecubeApi::executeCall("/games/save", "FILE", $params);
+			if($res)
+				return $res['k'];
+			else
+				throw new PebblecubeException("error saving file");
+		}
+		else
+			throw new PebblecubeException("user_token not valid");
+	}
+	
+	/**
+	 * updates a saved game file
+	 *
+	 * params:
+	 * - k: file identifier
+	 * - file: saved game file 
+	 * - name (optional): filename
+	 * - time (optional): timestamp created
+	 * - session_key (optional): unique session key
+	 *
+	 * @param Array $params game data
+	 * @return int server time
+	 * @throws PebblecubeException
+	 */
+	public function updateGame($params) {
+		$res = PebblecubeApi::executeCall("/games/update", "FILE", $params);
+		return $res['t'];
+	}
+	
+	/**
+	 * gets the details of a saved game
+	 *
+	 * params:
+	 * - k: file identifier
+	 *
+	 * @param Array $params game data
+	 * @return Array file details
+	 * @throws PebblecubeException
+	 */
+	public function getSavedGame($params) {
+		return PebblecubeApi::executeCall("/games/get", "GET", $params);			
+	}
+	
+	/**
+	 * delete a saved game
+	 *
+	 * params:
+	 * - k: file identifier
+	 *
+	 * @param Array $params game data
+	 * @return int server time
+	 * @throws PebblecubeException
+	 */
+	public function deleteSavedGame($params) {
+		$res = PebblecubeApi::executeCall("/games/delete", "GET", $params);
+		return $res['t'];
+	}	
+	
+	/**
+	 * returns user saved games
+	 *
+	 * config:
+	 * - index (optional): page index
+	 * - size (optional): page size, max 100
+	 *
+	 * @param Array $params 
+	 * @return Array list of saved games
+	 * @throws PebblecubeException
+	 */
+	public function getSavedGames($params = NULL) {
+		if($this->user_token) {
+			if($params == null)
+				$params = array();
+				
+			$params["user_token"] = $this->user_token;
+			return PebblecubeApi::executeCall("/games/list", "GET", $params);
+		}
+		else
+			throw new PebblecubeException("user_token not valid");
+	}
+	
+	/**
+	 * grants an achievement to a user
+	 *
+	 * config:
+	 * - code: achievement code
+	 * - time (optional): timestamp score
+	 * - session_key (optional): unique session key
+	 *
+	 * @param Array $params 
+	 * @return int server time
+	 * @throws PebblecubeException
+	 */
+	public function grantAchievement($params) {
+		if($this->user_token) {
+			$params["user_token"] = $this->user_token;
+			$res = PebblecubeApi::executeCall("/achievements/grant", "POST", $params);
+			return $res['t'];
+		}
+		else
+			throw new PebblecubeException("user_token not valid");
+	}
+	
+	/**
+	 * gets achievement details
+	 *
+	 * config:
+	 * - code: achievement code
+	 *
+	 * @param Array $params 
+	 * @return Array achievement details
+	 * @throws PebblecubeException
+	 */
+	public function getAchievementDetails($params) {
+		if($this->user_token) {
+			$params["user_token"] = $this->user_token;
+			return PebblecubeApi::executeCall("/achievements/details", "GET", $params);
+		}
+		else
+			throw new PebblecubeException("user_token not valid");
+	}
+	
+	/**
+	 * revoke an achievement
+	 *
+	 * config:
+	 * - code: achievement code
+	 *
+	 * @param Array $params 
+	 * @return int server time
+	 * @throws PebblecubeException
+	 */
+	public function revokeAchievement($params) {
+		if($this->user_token) {
+			$params["user_token"] = $this->user_token;
+			$res = PebblecubeApi::executeCall("/achievements/revoke", "POST", $params);
+			return $res['t'];
+		}
+		else
+			throw new PebblecubeException("user_token not valid");
+	}
+	
+	public function getAchievement() {
+		if($this->user_token) {
+			return PebblecubeApi::executeCall("/achievements/user", "GET", array("user_token" => $this->user_token));
+		}
+		else
+			throw new PebblecubeException("user_token not valid");
 	}
 }
 ?>
