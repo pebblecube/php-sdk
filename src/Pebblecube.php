@@ -38,7 +38,8 @@ class Pebblecube
 			"server" => "https://api.pebblecube.com",
 			"key" => NULL,
 			"secret" => NULL,
-			"sig" => NULL
+			"sig" => NULL,
+			"cipher" => NULL
 		);
 	
 	/**
@@ -72,6 +73,7 @@ class Pebblecube
 			
 		Pebblecube::$config["key"] = $params['key'];
 	    Pebblecube::$config["secret"] = $params['secret'];
+	    Pebblecube::$config["cipher"] = $params['cipher'];
 		Pebblecube::$config["sig"] = md5($params['key'].$params['secret']);
 		$this->session = new PebblecubeSession();
 		$this->user = new PebblecubeUser();
@@ -129,6 +131,12 @@ class PebblecubeApi
 	 */
 	public static function executeCall($url, $method, $params) {
 		
+		if(Pebblecube::$config["cipher"] && sizeof($params) > 0) {
+			$enc_data = PebblecubeApi::encrypt(http_build_query($params, '', '&'));
+			$params = array();
+			$params["data"] = $enc_data;
+		}
+		
 		//default call parameters
 		$params["api_sig"] = Pebblecube::$config["sig"];
 		$params["api_key"] = Pebblecube::$config["key"];
@@ -153,18 +161,71 @@ class PebblecubeApi
 				curl_setopt($ch, CURLOPT_POST, TRUE);
 				curl_setopt($ch, CURLOPT_POSTFIELDS, $postParams);
 		}
+
 		curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, FALSE);
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
 		$result = curl_exec($ch);
 		$httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 		curl_close($ch);
-		$json = json_decode($result, TRUE);
 		
 		//check status code or response for errors
-		if($httpcode >= 400 || array_key_exists("e", $json)) {
+		if($httpcode >= 400) {
+			$json = json_decode($result, TRUE);
 			throw new PebblecubeException(sprintf("%s", $json["e"]));
 		}
-		return json_decode($result, TRUE);
+		else {
+			return json_decode(PebblecubeApi::decrypt($result), TRUE);
+		}
+	}
+	
+	public static function encrypt($text) {
+		$const_cipher = NULL;
+		switch (Pebblecube::$config["cipher"]) {
+			case '256':
+				$const_cipher = MCRYPT_RIJNDAEL_256;
+				$key = substr(Pebblecube::$config["secret"], 0, 32);
+				break;
+			case '192':
+				$const_cipher = MCRYPT_RIJNDAEL_192;
+				$key = substr(Pebblecube::$config["secret"], 0, 24);
+				break;
+			case '128':
+				$const_cipher = MCRYPT_RIJNDAEL_128;
+				$key = substr(Pebblecube::$config["secret"], 0, 16);
+				break;
+		}
+		if($const_cipher != NULL) {
+			$iv_size = mcrypt_get_iv_size($const_cipher, MCRYPT_MODE_ECB);
+	   		$iv = mcrypt_create_iv($iv_size, MCRYPT_RAND);
+	   		return mcrypt_encrypt($const_cipher, $key, $text, MCRYPT_MODE_ECB, $iv);
+	 	}
+		else
+			return $text;
+	}
+
+	public static function decrypt($text) {
+		$const_cipher = NULL;
+		switch (Pebblecube::$config["cipher"]) {
+			case '256':
+				$const_cipher = MCRYPT_RIJNDAEL_256;
+				$key = substr(Pebblecube::$config["secret"], 0, 32);
+				break;
+			case '192':
+				$const_cipher = MCRYPT_RIJNDAEL_192;
+				$key = substr(Pebblecube::$config["secret"], 0, 24);
+				break;
+			case '128':
+				$const_cipher = MCRYPT_RIJNDAEL_128;
+				$key = substr(Pebblecube::$config["secret"], 0, 16);
+				break;
+		}
+		if($const_cipher != NULL) {
+			$iv_size = mcrypt_get_iv_size($const_cipher, MCRYPT_MODE_ECB);
+	   		$iv = mcrypt_create_iv($iv_size, MCRYPT_RAND);
+	   		return trim(mcrypt_decrypt($const_cipher, $key, $text, MCRYPT_MODE_ECB, $iv));
+		}
+		else
+			return $text;
 	}
 }
 
