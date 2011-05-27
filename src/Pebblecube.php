@@ -115,7 +115,32 @@ class Pebblecube
 	 */
 	public function getAchievementsBoard($params) {
 		return PebblecubeApi::executeCall("/achievements/board", "GET", $params);
-	}	
+	}
+	
+	/**
+	 * returns the value of a selected constant
+	 *
+	 * @param string $code constant code 
+	 * @return Array
+	 */
+	public function getConstant($code) {
+		return PebblecubeApi::executeCall("/functions/constant", "GET", array("code" => $code));
+	}
+	
+	/**
+	 * returns the result of a selected function
+	 *
+	 * config:
+	 * - code: function code
+	 * - vars: json string with values for each of the variables specified in the function script
+	 *
+	 * @param string $code constant code 
+	 * @return Array
+	 */
+	public function executeFunction($code, $vars) {
+		$params = array("code" => $code, "vars" => json_encode($vars));
+		return PebblecubeApi::executeCall("/functions/execute", "GET", $params);
+	}
 }
 
 class PebblecubeApi 
