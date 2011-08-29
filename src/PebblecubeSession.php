@@ -116,7 +116,7 @@ class PebblecubeSession
 	 * @param int $stop optional stop timestamp
 	 * @return string segment id
 	 */
-	public function trackSegment($map, $segment, $start = time(), $stop = time()) {
+	public function trackSegment($map, $segment, $start, $stop) {
 		if($this->id != null) {
 			if(empty($map)) {
 				throw new PebblecubeException("invalid map code");
