@@ -106,5 +106,35 @@ class PebblecubeSession
 		else
 			throw new PebblecubeException("session not started");
 	}
+	
+	/**
+	 * tracks a new segment on a specified map
+	 *
+	 * @param string $map map code
+	 * @param Array $segment list of coordinates
+	 * @param int $start optional start timestamp
+	 * @param int $stop optional stop timestamp
+	 * @return string segment id
+	 */
+	public function trackSegment($map, $segment, $start = time(), $stop = time()) {
+		if($this->id != null) {
+			if(empty($map)) {
+				throw new PebblecubeException("invalid map code");
+			}			
+			if(empty($segment)) {
+				throw new PebblecubeException("invalid segment");
+			}
+			$params = array("session_key" => $this->id, "map" => $map, "start" => $start, "stop" => $stop, "segment" => json_encode($segment));
+			$res = PebblecubeApi::executeCall("/maps/track", "POST", $params);
+			if($res == null) {
+				throw new PebblecubeException("invalid segment");
+			}
+			else {
+				return $res["s"];
+			}
+		}
+		else
+			throw new PebblecubeException("session not started");
+	}
 }
 ?>
