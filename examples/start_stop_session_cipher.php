@@ -4,7 +4,7 @@ require_once('../src/Pebblecube.php');
 $pb = new Pebblecube(array(
 	'key'  => 'YOUR_KEY',
 	'secret' => 'YOUR_SECRET',
-  	'cipher' => '192'
+  	'cipher' => '256'
 ));
 
 $pb->session->start();

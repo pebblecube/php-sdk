@@ -156,10 +156,14 @@ class PebblecubeApi
 	 */
 	public static function executeCall($url, $method, $params) {
 		
-		if(Pebblecube::$config["cipher"] && sizeof($params) > 0) {
-			$enc_data = PebblecubeApi::encrypt(http_build_query($params, '', '&'));
-			$params = array();
-			$params["data"] = $enc_data;
+		$iv = NULL;
+		if(Pebblecube::$config["cipher"]) {
+			$iv = openssl_random_pseudo_bytes(16);
+			if(sizeof($params) > 0) {
+				$enc_data = PebblecubeApi::encrypt(http_build_query($params, '', '&'), $iv);
+				$params = array();
+				$params["data"] = $enc_data;
+			}
 		}
 		
 		//default call parameters
@@ -186,71 +190,90 @@ class PebblecubeApi
 				curl_setopt($ch, CURLOPT_POST, TRUE);
 				curl_setopt($ch, CURLOPT_POSTFIELDS, $postParams);
 		}
-
+		
+		//adding iv to the request
+		if($iv != NULL) {
+			curl_setopt($ch, CURLOPT_HTTPHEADER, array('PC_IV: '.sprintf("%s", base64_encode($iv))));
+		}
+		
 		curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, FALSE);
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
+		curl_setopt($ch, CURLOPT_HEADER, FALSE); 
+		curl_setopt($ch, CURLINFO_HEADER_OUT, TRUE); 
+		
 		$result = curl_exec($ch);
 		$httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-		curl_close($ch);
+		$headers = curl_getinfo($ch, CURLINFO_HEADER_OUT);
 		
+		curl_close($ch);
+				
 		//check status code or response for errors
 		if($httpcode >= 400) {
 			$json = json_decode($result, TRUE);
 			throw new PebblecubeException(sprintf("%s", $json["e"]));
 		}
 		else {
-			return json_decode(PebblecubeApi::decrypt($result), TRUE);
+			preg_match('/PC_IV: (?P<iv>[a-zA-Z0-9\/+=]+)/', $headers, $matches);
+			return json_decode(PebblecubeApi::decrypt($result, array_key_exists("iv", $matches) ? $matches["iv"] : ""), TRUE);
 		}
 	}
 	
-	public static function encrypt($text) {
-		$const_cipher = NULL;
-		switch (Pebblecube::$config["cipher"]) {
-			case '256':
-				$const_cipher = MCRYPT_RIJNDAEL_256;
-				$key = substr(Pebblecube::$config["secret"], 0, 32);
-				break;
-			case '192':
-				$const_cipher = MCRYPT_RIJNDAEL_192;
-				$key = substr(Pebblecube::$config["secret"], 0, 24);
-				break;
-			case '128':
-				$const_cipher = MCRYPT_RIJNDAEL_128;
-				$key = substr(Pebblecube::$config["secret"], 0, 16);
-				break;
-		}
-		if($const_cipher != NULL) {
-			$iv_size = mcrypt_get_iv_size($const_cipher, MCRYPT_MODE_ECB);
-	   		$iv = mcrypt_create_iv($iv_size, MCRYPT_RAND);
-	   		return mcrypt_encrypt($const_cipher, $key, $text, MCRYPT_MODE_ECB, $iv);
-	 	}
-		else
+	/**
+	 * Encrypts using aes, cbc as mode of operation
+	 *
+	 * @param string $text Text to encrypt
+	 * @param string $iv initialization vector
+	 * @return string encrypted text
+	 */
+	public static function encrypt($text, $iv) {
+		
+		if(!empty(Pebblecube::$config["cipher"])) {
+			
+			switch (Pebblecube::$config["cipher"]) {
+				case '256':
+					$key = substr(Pebblecube::$config["secret"], 0, 32);
+					break;
+				case '192':
+					$key = substr(Pebblecube::$config["secret"], 0, 24);
+					break;
+				case '128':
+					$key = substr(Pebblecube::$config["secret"], 0, 16);
+					break;
+			}
+			//the iv parameter added at version 5.3.3
+			if (version_compare(PHP_VERSION, '5.3.3') >= 0) {
+				return openssl_encrypt($text, 'AES-'.Pebblecube::$config["cipher"].'-CBC', $key, FALSE, $iv); //output in base64
+			} else {
+				return openssl_encrypt($text, 'AES-'.Pebblecube::$config["cipher"].'-CBC', $key, FALSE); //output in base64
+			}
+		} else {
 			return $text;
+		}
 	}
 
-	public static function decrypt($text) {
-		$const_cipher = NULL;
-		switch (Pebblecube::$config["cipher"]) {
-			case '256':
-				$const_cipher = MCRYPT_RIJNDAEL_256;
-				$key = substr(Pebblecube::$config["secret"], 0, 32);
-				break;
-			case '192':
-				$const_cipher = MCRYPT_RIJNDAEL_192;
-				$key = substr(Pebblecube::$config["secret"], 0, 24);
-				break;
-			case '128':
-				$const_cipher = MCRYPT_RIJNDAEL_128;
-				$key = substr(Pebblecube::$config["secret"], 0, 16);
-				break;
-		}
-		if($const_cipher != NULL) {
-			$iv_size = mcrypt_get_iv_size($const_cipher, MCRYPT_MODE_ECB);
-	   		$iv = mcrypt_create_iv($iv_size, MCRYPT_RAND);
-	   		return trim(mcrypt_decrypt($const_cipher, $key, $text, MCRYPT_MODE_ECB, $iv));
-		}
-		else
+	public static function decrypt($text, $iv) {
+		
+		if(!empty(Pebblecube::$config["cipher"])) {
+			
+			switch (Pebblecube::$config["cipher"]) {
+				case '256':
+					$key = substr(Pebblecube::$config["secret"], 0, 32);
+					break;
+				case '192':
+					$key = substr(Pebblecube::$config["secret"], 0, 24);
+					break;
+				case '128':
+					$key = substr(Pebblecube::$config["secret"], 0, 16);
+					break;
+			}
+			if (version_compare(PHP_VERSION, '5.3.3') >= 0) {
+				return openssl_decrypt($text, 'AES-'.Pebblecube::$config["cipher"].'-CBC', $key, FALSE, base64_decode($iv)); //input in base64
+			} else {
+				return openssl_decrypt($text, 'AES-'.Pebblecube::$config["cipher"].'-CBC', $key, FALSE); //input in base64
+			}
+		} else {
 			return $text;
+		}
 	}
 }
 
